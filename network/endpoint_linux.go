@@ -7,6 +7,7 @@ import (
 	"crypto/sha1"
 	"encoding/hex"
 	"fmt"
+	"io/ioutil"
 	"net"
 	"strings"
 
@@ -181,6 +182,18 @@ func (nw *network) newEndpointImpl(epInfo *EndpointInfo) (*endpoint, error) {
 	if epInfo.IfName != "" {
 		if err = epClient.SetupContainerInterfaces(epInfo); err != nil {
 			return nil, err
+		}
+	}
+
+	// TODO: Only do this if there's any IPv6 addresses
+	for _, iface := range [2]string{"lo", epInfo.IfName} {
+		if iface != "" {
+			ipv6SysctlValueName := fmt.Sprintf("/proc/sys/net/ipv6/conf/%s/disable_ipv6", iface)
+			log.Printf("[net] Enabling IPv6 for %s via sysctl.", ipv6SysctlValueName)
+			err = ioutil.WriteFile(ipv6SysctlValueName, []byte("0"), 0644)
+			if err != nil {
+				log.Printf("[net] Failed to enable IPv6 in sysctl, err:%v.", err)
+			}
 		}
 	}
 
